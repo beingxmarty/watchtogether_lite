@@ -222,13 +222,62 @@ const MainViewingRoom = () => {
     };
   }, [user, roomId, isChatExpanded, currentUser?.name]);
 
+  // Video error state
+  const [videoError, setVideoError] = useState(null);
+
+  // Chat error state
+  const [chatError, setChatError] = useState(null);
+
+  // Enhanced YouTube IFrame API initialization with error handling
+  useEffect(() => {
+    if (!videoId || !window.YT || !window.YT.Player || ytPlayerRef.current) return;
+    try {
+      ytPlayerRef.current = new window.YT.Player('yt-player', {
+        videoId,
+        events: {
+          onReady: (event) => {
+            event.target.seekTo(currentTime, true);
+            if (isPlaying) event.target.playVideo();
+          },
+          onError: (event) => {
+            setVideoError('Failed to load video. Please check the URL or try another video.');
+          },
+          onStateChange: (event) => {
+            if (event.data === window.YT.PlayerState.PAUSED || event.data === window.YT.PlayerState.ENDED) {
+              setShowControls(true);
+            }
+            if (event.data === window.YT.PlayerState.PLAYING) {
+              setShowControls(true);
+            }
+          }
+        },
+        playerVars: {
+          controls: 0,
+          modestbranding: 1,
+          rel: 0,
+          enablejsapi: 1,
+          disablekb: 1,
+          fs: 0,
+          iv_load_policy: 3,
+          playsinline: 1
+        }
+      });
+    } catch (err) {
+      setVideoError('Video player failed to initialize.');
+      console.error('YouTube Player Error:', err);
+    }
+    return () => {
+      ytPlayerRef.current?.destroy?.();
+      ytPlayerRef.current = null;
+    };
+  }, [videoId]);
+
   // Load existing messages
+  // Enhanced chat message loading with error handling
   const loadMessages = async () => {
     try {
       const { data, error } = await supabase?.from('chat_messages')?.select('*')?.eq('room_id', roomId)?.order('created_at', { ascending: true })?.limit(50);
-
       if (error) throw error;
-
       const formattedMessages = data?.map(msg => ({
         id: msg?.id,
         userId: msg?.user_id,
@@ -236,9 +285,10 @@ const MainViewingRoom = () => {
         content: msg?.content,
         timestamp: new Date(msg?.created_at)
       })) || [];
-
       setMessages(formattedMessages);
+      setChatError(null);
     } catch (error) {
+      setChatError('Failed to load chat messages. Please refresh or check your connection.');
       console.error('Error loading messages:', error);
     }
   };
@@ -325,6 +375,7 @@ const MainViewingRoom = () => {
   };
 
   // Send message to Supabase
+  // Enhanced chat message sending with error handling
   const handleSendMessage = async (content, messageType = 'user') => {
     try {
       const messageData = {
@@ -334,20 +385,18 @@ const MainViewingRoom = () => {
         content,
         message_type: messageType
       };
-
       const { error } = await supabase?.from('chat_messages')?.insert([messageData]);
-
       if (error) throw error;
-      // Stop typing after sending
       await presenceChannel?.track({
         user_id: user?.id,
         display_name: currentUser?.name,
         last_seen: new Date()?.toISOString(),
         isTyping: false
       });
+      setChatError(null);
     } catch (error) {
+      setChatError('Failed to send message. Please try again.');
       console.error('Error sending message:', error);
-      // Add message locally if DB fails
       const fallbackMessage = {
         id: Date.now(),
         userId: messageType === 'system' ? 'system' : user?.id,
@@ -436,6 +485,7 @@ const MainViewingRoom = () => {
     return () => window.removeEventListener('focus', onFocus);
   }, [presenceChannel, videoSyncChannel, user, currentUser?.name]);
 
+  // Fallback UI for video and chat errors
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header with user info */}
@@ -477,26 +527,32 @@ const MainViewingRoom = () => {
             className="max-w-2xl mx-auto"
           />
 
-          {/* Video Player */}
+          {/* Video Player or Error */}
           <div className="flex-1 min-h-0">
-            <VideoPlayer
-              videoUrl={currentVideo}
-              isPlaying={isPlaying}
-              currentTime={currentTime}
-              duration={duration}
-              volume={volume}
-              isMuted={isMuted}
-              isBuffering={isBuffering}
-              syncStatus={syncStatus}
-              onPlay={handlePlay}
-              onPause={handlePause}
-              onSeek={handleSeek}
-              onVolumeChange={handleVolumeChange}
-              onMute={handleMute}
-              onSync={handleSync}
-              onVideoLoad={handleVideoLoad}
-              className="w-full h-full"
-            />
+            {videoError ? (
+              <div className="flex items-center justify-center h-full bg-red-100 text-red-700 text-lg font-semibold">
+                {videoError}
+              </div>
+            ) : (
+              <VideoPlayer
+                videoUrl={currentVideo}
+                isPlaying={isPlaying}
+                currentTime={currentTime}
+                duration={duration}
+                volume={volume}
+                isMuted={isMuted}
+                isBuffering={isBuffering}
+                syncStatus={syncStatus}
+                onPlay={handlePlay}
+                onPause={handlePause}
+                onSeek={handleSeek}
+                onVolumeChange={handleVolumeChange}
+                onMute={handleMute}
+                onSync={handleSync}
+                onVideoLoad={handleVideoLoad}
+                className="w-full h-full"
+              />
+            )}
           </div>
 
           {/* Video Info */}
@@ -522,8 +578,33 @@ const MainViewingRoom = () => {
           )}
         </div>
 
-        {/* Chat Panel - Desktop */}
+        {/* Chat Panel - Desktop or Error */}
         <div className="hidden md:block">
+          {chatError ? (
+            <div className="flex items-center justify-center h-full bg-red-100 text-red-700 text-lg font-semibold">
+              {chatError}
+            </div>
+          ) : (
+            <ChatPanel
+              isExpanded={isChatExpanded}
+              messages={messages}
+              currentUser={currentUser}
+              onSendMessage={handleSendMessage}
+              onToggleExpanded={handleToggleChat}
+              typingUsers={typingUsers}
+              connectionStatus={connectionStatus}
+            />
+          )}
+        </div>
+      </div>
+
+      {/* Mobile Chat Panel or Error */}
+      <div className="md:hidden">
+        {chatError ? (
+          <div className="flex items-center justify-center h-full bg-red-100 text-red-700 text-lg font-semibold">
+            {chatError}
+          </div>
+        ) : (
           <ChatPanel
             isExpanded={isChatExpanded}
             messages={messages}
@@ -533,20 +614,7 @@ const MainViewingRoom = () => {
             typingUsers={typingUsers}
             connectionStatus={connectionStatus}
           />
-        </div>
-      </div>
-
-      {/* Mobile Chat Panel */}
-      <div className="md:hidden">
-        <ChatPanel
-          isExpanded={isChatExpanded}
-          messages={messages}
-          currentUser={currentUser}
-          onSendMessage={handleSendMessage}
-          onToggleExpanded={handleToggleChat}
-          typingUsers={typingUsers}
-          connectionStatus={connectionStatus}
-        />
+        )}
       </div>
 
       {/* Mobile Chat Toggle Button */}
