@@ -11,6 +11,16 @@ import Button from '../../components/ui/Button';
 import Icon from '../../components/AppIcon';
 
 const MainViewingRoom = () => {
+  // Load current video for new users
+  useEffect(() => {
+    const lastVideo = localStorage.getItem('currentVideo');
+    const lastTime = localStorage.getItem('currentTime');
+    if (lastVideo) {
+      setCurrentVideo(lastVideo);
+      setIsPlaying(true);
+      setCurrentTime(Number(lastTime) || 0);
+    }
+  }, []);
   const { user, profile, signOut } = useAuth();
   
   // Video state
@@ -223,12 +233,13 @@ const MainViewingRoom = () => {
   const handleVideoLoad = async (videoUrl) => {
     setIsVideoLoading(true);
     setSyncStatus('syncing');
-    // Simulate loading delay
     setTimeout(() => {
       setCurrentVideo(videoUrl);
       setDuration(180); // 3 minutes mock duration
       setIsVideoLoading(false);
       setSyncStatus('synced');
+      localStorage.setItem('currentVideo', videoUrl);
+      localStorage.setItem('currentTime', '0');
       broadcastVideoAction('load', { videoUrl, duration: 180 });
       handleSendMessage(`New video loaded: ${videoUrl}`, 'system');
     }, 2000);
@@ -252,6 +263,7 @@ const MainViewingRoom = () => {
   const handleSeek = (time) => {
     setCurrentTime(time);
     setSyncStatus('syncing');
+    localStorage.setItem('currentTime', String(time));
     broadcastVideoAction('seek', { currentTime: time });
     setTimeout(() => setSyncStatus('synced'), 1500);
   };
@@ -380,14 +392,12 @@ const MainViewingRoom = () => {
       <div className="flex flex-col md:flex-row h-screen">
         {/* Video Section */}
         <div className="flex-1 flex flex-col p-4 space-y-4">
-          {/* Video URL Input */}
-          {!currentVideo && (
-            <VideoUrlInput
-              onVideoLoad={handleVideoLoad}
-              isLoading={isVideoLoading}
-              className="max-w-2xl mx-auto"
-            />
-          )}
+          {/* Video URL Input - always visible */}
+          <VideoUrlInput
+            onVideoLoad={handleVideoLoad}
+            isLoading={isVideoLoading}
+            className="max-w-2xl mx-auto"
+          />
 
           {/* Video Player */}
           <div className="flex-1 min-h-0">
