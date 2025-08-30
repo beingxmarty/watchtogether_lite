@@ -19,6 +19,13 @@ const MainViewingRoom = () => {
       setCurrentVideo(lastVideo);
       setIsPlaying(true);
       setCurrentTime(Number(lastTime) || 0);
+    } else {
+      // Request sync from other users
+      videoSyncChannel?.send?.({
+        type: 'broadcast',
+        event: 'video-action',
+        payload: { type: 'request-sync' }
+      });
     }
   }, []);
   const { user, profile, signOut } = useAuth();
@@ -141,21 +148,25 @@ const MainViewingRoom = () => {
     const videoSyncChannel = supabase?.channel(`room_${roomId}_video_sync`)
       ?.on('broadcast', { event: 'video-action' }, ({ payload }) => {
         if (!payload) return;
-        // Handle incoming video actions
         switch (payload.type) {
           case 'play':
             setIsPlaying(true);
             setCurrentTime(payload.currentTime ?? currentTime);
             setSyncStatus('synced');
+            localStorage.setItem('currentVideo', currentVideo);
+            localStorage.setItem('currentTime', String(payload.currentTime ?? currentTime));
             break;
           case 'pause':
             setIsPlaying(false);
             setCurrentTime(payload.currentTime ?? currentTime);
             setSyncStatus('synced');
+            localStorage.setItem('currentVideo', currentVideo);
+            localStorage.setItem('currentTime', String(payload.currentTime ?? currentTime));
             break;
           case 'seek':
             setCurrentTime(payload.currentTime ?? currentTime);
             setSyncStatus('synced');
+            localStorage.setItem('currentTime', String(payload.currentTime ?? currentTime));
             break;
           case 'load':
             setCurrentVideo(payload.videoUrl ?? '');
@@ -163,6 +174,33 @@ const MainViewingRoom = () => {
             setCurrentTime(0);
             setIsPlaying(false);
             setSyncStatus('synced');
+            localStorage.setItem('currentVideo', payload.videoUrl ?? '');
+            localStorage.setItem('currentTime', '0');
+            break;
+          case 'sync-state':
+            setCurrentVideo(payload.videoUrl ?? '');
+            setDuration(payload.duration ?? 180);
+            setCurrentTime(payload.currentTime ?? 0);
+            setIsPlaying(payload.isPlaying ?? false);
+            setSyncStatus('synced');
+            localStorage.setItem('currentVideo', payload.videoUrl ?? '');
+            localStorage.setItem('currentTime', String(payload.currentTime ?? 0));
+            break;
+          case 'request-sync':
+            // If another user requests sync, send current state
+            if (user) {
+              videoSyncChannel?.send?.({
+                type: 'broadcast',
+                event: 'video-action',
+                payload: {
+                  type: 'sync-state',
+                  videoUrl: currentVideo,
+                  duration,
+                  currentTime,
+                  isPlaying
+                }
+              });
+            }
             break;
           default:
             break;
@@ -241,6 +279,7 @@ const MainViewingRoom = () => {
       localStorage.setItem('currentVideo', videoUrl);
       localStorage.setItem('currentTime', '0');
       broadcastVideoAction('load', { videoUrl, duration: 180 });
+      broadcastVideoAction('sync-state', { videoUrl, duration: 180, currentTime: 0, isPlaying: false });
       handleSendMessage(`New video loaded: ${videoUrl}`, 'system');
     }, 2000);
   };
@@ -250,6 +289,7 @@ const MainViewingRoom = () => {
     setIsPlaying(true);
     setSyncStatus('syncing');
     broadcastVideoAction('play', { currentTime });
+    broadcastVideoAction('sync-state', { videoUrl: currentVideo, duration, currentTime, isPlaying: true });
     setTimeout(() => setSyncStatus('synced'), 1000);
   };
 
@@ -257,6 +297,7 @@ const MainViewingRoom = () => {
     setIsPlaying(false);
     setSyncStatus('syncing');
     broadcastVideoAction('pause', { currentTime });
+    broadcastVideoAction('sync-state', { videoUrl: currentVideo, duration, currentTime, isPlaying: false });
     setTimeout(() => setSyncStatus('synced'), 1000);
   };
 
@@ -265,6 +306,7 @@ const MainViewingRoom = () => {
     setSyncStatus('syncing');
     localStorage.setItem('currentTime', String(time));
     broadcastVideoAction('seek', { currentTime: time });
+    broadcastVideoAction('sync-state', { videoUrl: currentVideo, duration, currentTime: time, isPlaying });
     setTimeout(() => setSyncStatus('synced'), 1500);
   };
 

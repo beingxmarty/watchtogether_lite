@@ -57,7 +57,13 @@ const VideoPlayer = ({
           if (isPlaying) event.target.playVideo();
         },
         onStateChange: (event) => {
-          // Optionally handle state changes
+          // Always show controls, hide overlay play button
+          if (event.data === window.YT.PlayerState.PAUSED || event.data === window.YT.PlayerState.ENDED) {
+            setShowControls(true);
+          }
+          if (event.data === window.YT.PlayerState.PLAYING) {
+            setShowControls(true);
+          }
         }
       },
       playerVars: {
@@ -82,14 +88,17 @@ const VideoPlayer = ({
     if (!ytPlayerRef.current) return;
     if (isPlaying) {
       ytPlayerRef.current.playVideo();
+      setShowControls(true);
     } else {
       ytPlayerRef.current.pauseVideo();
+      setShowControls(true);
     }
   }, [isPlaying]);
 
   useEffect(() => {
     if (!ytPlayerRef.current) return;
     ytPlayerRef.current.seekTo(currentTime, true);
+    setShowControls(true);
   }, [currentTime]);
 
   // Auto-hide controls
