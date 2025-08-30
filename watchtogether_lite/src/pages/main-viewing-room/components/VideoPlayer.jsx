@@ -64,7 +64,11 @@ const VideoPlayer = ({
         controls: 0,
         modestbranding: 1,
         rel: 0,
-        enablejsapi: 1
+        enablejsapi: 1,
+        disablekb: 1,
+        fs: 0,
+        iv_load_policy: 3,
+        playsinline: 1
       }
     });
     return () => {
@@ -249,6 +253,26 @@ const VideoPlayer = ({
           {/* Control Buttons */}
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
+              {/* Skip Backward 1min */}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => onSeek?.(Math.max(currentTime - 60, 0))}
+                className="text-white hover:bg-white/20 w-8 h-8"
+                disabled={isBuffering}
+              >
+                <Icon name="Rewind" size={16} />
+              </Button>
+              {/* Skip Backward 10s */}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => onSeek?.(Math.max(currentTime - 10, 0))}
+                className="text-white hover:bg-white/20 w-8 h-8"
+                disabled={isBuffering}
+              >
+                <Icon name="RotateCcw" size={16} />
+              </Button>
               {/* Play/Pause Button */}
               <Button
                 variant="ghost"
@@ -263,7 +287,26 @@ const VideoPlayer = ({
                   <Icon name={isPlaying ? "Pause" : "Play"} size={20} />
                 )}
               </Button>
-
+              {/* Skip Forward 10s */}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => onSeek?.(Math.min(currentTime + 10, duration))}
+                className="text-white hover:bg-white/20 w-8 h-8"
+                disabled={isBuffering}
+              >
+                <Icon name="RotateCw" size={16} />
+              </Button>
+              {/* Skip Forward 1min */}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => onSeek?.(Math.min(currentTime + 60, duration))}
+                className="text-white hover:bg-white/20 w-8 h-8"
+                disabled={isBuffering}
+              >
+                <Icon name="FastForward" size={16} />
+              </Button>
               {/* Volume Control */}
               <div className="flex items-center space-x-2">
                 <Button
@@ -277,7 +320,6 @@ const VideoPlayer = ({
                     size={16} 
                   />
                 </Button>
-                
                 <div className="hidden sm:block w-20">
                   <input
                     type="range"
@@ -290,7 +332,6 @@ const VideoPlayer = ({
                   />
                 </div>
               </div>
-
               {/* Time Display */}
               <div className="hidden md:block text-sm text-white/70">
                 {formatTime(currentTime)} / {formatTime(duration)}
