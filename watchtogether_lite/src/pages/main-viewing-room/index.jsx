@@ -486,6 +486,19 @@ const MainViewingRoom = () => {
     return () => window.removeEventListener('focus', onFocus);
   }, [presenceChannel, videoSyncChannel, user, currentUser?.name]);
 
+  // Defensive checks for required state
+  if (!currentUser || !roomId || !videoSyncChannel || !presenceChannel) {
+    console.error('Missing required state:', { currentUser, roomId, videoSyncChannel, presenceChannel });
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-neutral-50">
+        <div className="text-center p-8 max-w-md">
+          <h1 className="text-2xl font-medium text-neutral-800">App initialization error</h1>
+          <p className="text-neutral-600 text-base">Some required data is missing. Please refresh the page or check your connection.</p>
+        </div>
+      </div>
+    );
+  }
+
   // Defensive rendering for chat messages
   const safeMessages = Array.isArray(messages) ? messages : [];
 
