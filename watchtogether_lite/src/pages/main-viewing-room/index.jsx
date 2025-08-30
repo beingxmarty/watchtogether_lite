@@ -231,10 +231,10 @@ const MainViewingRoom = () => {
 
   // Enhanced YouTube IFrame API initialization with error handling
   useEffect(() => {
-    if (!videoId || !window.YT || !window.YT.Player || ytPlayerRef.current) return;
+    if (!window.YT || !window.YT.Player || ytPlayerRef.current) return;
     try {
       ytPlayerRef.current = new window.YT.Player('yt-player', {
-        videoId,
+        videoId: currentVideo.split('v=')[1], // Extract video ID from URL
         events: {
           onReady: (event) => {
             event.target.seekTo(currentTime, true);
@@ -271,7 +271,7 @@ const MainViewingRoom = () => {
       ytPlayerRef.current?.destroy?.();
       ytPlayerRef.current = null;
     };
-  }, [videoId]);
+  }, [currentVideo]);
 
   // Load existing messages
   // Enhanced chat message loading with error handling
