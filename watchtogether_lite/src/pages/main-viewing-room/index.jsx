@@ -9,6 +9,7 @@ import ConnectionStatus from './components/ConnectionStatus';
 import MobileChatToggle from './components/MobileChatToggle';
 import Button from '../../components/ui/Button';
 import Icon from '../../components/AppIcon';
+import ErrorBoundary from '../../components/ErrorBoundary';
 
 const MainViewingRoom = () => {
   // Load current video for new users
@@ -485,101 +486,125 @@ const MainViewingRoom = () => {
     return () => window.removeEventListener('focus', onFocus);
   }, [presenceChannel, videoSyncChannel, user, currentUser?.name]);
 
+  // Defensive rendering for chat messages
+  const safeMessages = Array.isArray(messages) ? messages : [];
+
   // Fallback UI for video and chat errors
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header with user info */}
-      <div className="bg-white border-b border-gray-200 px-4 py-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <Icon name="Video" size={24} className="text-blue-500" />
-            <h1 className="text-lg font-semibold text-gray-900">WatchTogether</h1>
-          </div>
-          
-          <div className="flex items-center space-x-4">
-            <span className="text-sm text-gray-600">
-              Welcome, {currentUser?.name}
-            </span>
-            <Button variant="ghost" size="sm" onClick={handleSignOut}>
-              <Icon name="LogOut" size={16} className="mr-1" />
-              Sign Out
-            </Button>
+    <ErrorBoundary>
+      <div className="min-h-screen bg-gray-50">
+        {/* Header with user info */}
+        <div className="bg-white border-b border-gray-200 px-4 py-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <Icon name="Video" size={24} className="text-blue-500" />
+              <h1 className="text-lg font-semibold text-gray-900">WatchTogether</h1>
+            </div>
+            
+            <div className="flex items-center space-x-4">
+              <span className="text-sm text-gray-600">
+                Welcome, {currentUser?.name}
+              </span>
+              <Button variant="ghost" size="sm" onClick={handleSignOut}>
+                <Icon name="LogOut" size={16} className="mr-1" />
+                Sign Out
+              </Button>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Connection Status Indicator */}
-      <ConnectionStatus
-        connectionStatus={connectionStatus}
-        userCount={userCount}
-        syncStatus={syncStatus}
-        onlineUsers={onlineUsers}
-      />
+        {/* Connection Status Indicator */}
+        <ConnectionStatus
+          connectionStatus={connectionStatus}
+          userCount={userCount}
+          syncStatus={syncStatus}
+          onlineUsers={onlineUsers}
+        />
 
-      {/* Main Content */}
-      <div className="flex flex-col md:flex-row h-screen">
-        {/* Video Section */}
-        <div className="flex-1 flex flex-col p-4 space-y-4">
-          {/* Video URL Input - always visible */}
-          <VideoUrlInput
-            onVideoLoad={handleVideoLoad}
-            isLoading={isVideoLoading}
-            className="max-w-2xl mx-auto"
-          />
+        {/* Main Content */}
+        <div className="flex flex-col md:flex-row h-screen">
+          {/* Video Section */}
+          <div className="flex-1 flex flex-col p-4 space-y-4">
+            {/* Video URL Input - always visible */}
+            <VideoUrlInput
+              onVideoLoad={handleVideoLoad}
+              isLoading={isVideoLoading}
+              className="max-w-2xl mx-auto"
+            />
 
-          {/* Video Player or Error */}
-          <div className="flex-1 min-h-0">
-            {videoError ? (
-              <div className="flex items-center justify-center h-full bg-red-100 text-red-700 text-lg font-semibold">
-                {videoError}
+            {/* Video Player or Error */}
+            <div className="flex-1 min-h-0">
+              {videoError ? (
+                <div className="flex items-center justify-center h-full bg-red-100 text-red-700 text-lg font-semibold">
+                  {videoError}
+                </div>
+              ) : (
+                <VideoPlayer
+                  videoUrl={currentVideo}
+                  isPlaying={isPlaying}
+                  currentTime={currentTime}
+                  duration={duration}
+                  volume={volume}
+                  isMuted={isMuted}
+                  isBuffering={isBuffering}
+                  syncStatus={syncStatus}
+                  onPlay={handlePlay}
+                  onPause={handlePause}
+                  onSeek={handleSeek}
+                  onVolumeChange={handleVolumeChange}
+                  onMute={handleMute}
+                  onSync={handleSync}
+                  onVideoLoad={handleVideoLoad}
+                  className="w-full h-full"
+                />
+              )}
+            </div>
+
+            {/* Video Info */}
+            {currentVideo && (
+              <div className="bg-white rounded-lg border border-gray-200 p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="font-semibold text-gray-900">Now Watching</h2>
+                    <p className="text-sm text-gray-600 truncate max-w-md">
+                      {currentVideo}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm text-gray-500">
+                      {userCount} {userCount === 1 ? 'viewer' : 'viewers'}
+                    </p>
+                    <p className="text-xs text-gray-400">
+                      Synchronized playback
+                    </p>
+                  </div>
+                </div>
               </div>
-            ) : (
-              <VideoPlayer
-                videoUrl={currentVideo}
-                isPlaying={isPlaying}
-                currentTime={currentTime}
-                duration={duration}
-                volume={volume}
-                isMuted={isMuted}
-                isBuffering={isBuffering}
-                syncStatus={syncStatus}
-                onPlay={handlePlay}
-                onPause={handlePause}
-                onSeek={handleSeek}
-                onVolumeChange={handleVolumeChange}
-                onMute={handleMute}
-                onSync={handleSync}
-                onVideoLoad={handleVideoLoad}
-                className="w-full h-full"
-              />
             )}
           </div>
 
-          {/* Video Info */}
-          {currentVideo && (
-            <div className="bg-white rounded-lg border border-gray-200 p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="font-semibold text-gray-900">Now Watching</h2>
-                  <p className="text-sm text-gray-600 truncate max-w-md">
-                    {currentVideo}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm text-gray-500">
-                    {userCount} {userCount === 1 ? 'viewer' : 'viewers'}
-                  </p>
-                  <p className="text-xs text-gray-400">
-                    Synchronized playback
-                  </p>
-                </div>
+          {/* Chat Panel - Desktop or Error */}
+          <div className="hidden md:block">
+            {chatError ? (
+              <div className="flex items-center justify-center h-full bg-red-100 text-red-700 text-lg font-semibold">
+                {chatError}
               </div>
-            </div>
-          )}
+            ) : (
+              <ChatPanel
+                isExpanded={isChatExpanded}
+                messages={safeMessages}
+                currentUser={currentUser}
+                onSendMessage={handleSendMessage}
+                onToggleExpanded={handleToggleChat}
+                typingUsers={typingUsers}
+                connectionStatus={connectionStatus}
+              />
+            )}
+          </div>
         </div>
 
-        {/* Chat Panel - Desktop or Error */}
-        <div className="hidden md:block">
+        {/* Mobile Chat Panel or Error */}
+        <div className="md:hidden">
           {chatError ? (
             <div className="flex items-center justify-center h-full bg-red-100 text-red-700 text-lg font-semibold">
               {chatError}
@@ -587,7 +612,7 @@ const MainViewingRoom = () => {
           ) : (
             <ChatPanel
               isExpanded={isChatExpanded}
-              messages={messages}
+              messages={safeMessages}
               currentUser={currentUser}
               onSendMessage={handleSendMessage}
               onToggleExpanded={handleToggleChat}
@@ -596,35 +621,16 @@ const MainViewingRoom = () => {
             />
           )}
         </div>
-      </div>
 
-      {/* Mobile Chat Panel or Error */}
-      <div className="md:hidden">
-        {chatError ? (
-          <div className="flex items-center justify-center h-full bg-red-100 text-red-700 text-lg font-semibold">
-            {chatError}
-          </div>
-        ) : (
-          <ChatPanel
-            isExpanded={isChatExpanded}
-            messages={messages}
-            currentUser={currentUser}
-            onSendMessage={handleSendMessage}
-            onToggleExpanded={handleToggleChat}
-            typingUsers={typingUsers}
-            connectionStatus={connectionStatus}
-          />
-        )}
+        {/* Mobile Chat Toggle Button */}
+        <MobileChatToggle
+          isExpanded={isChatExpanded}
+          onToggle={handleToggleChat}
+          unreadCount={unreadCount}
+          isTyping={typingUsers?.length > 0}
+        />
       </div>
-
-      {/* Mobile Chat Toggle Button */}
-      <MobileChatToggle
-        isExpanded={isChatExpanded}
-        onToggle={handleToggleChat}
-        unreadCount={unreadCount}
-        isTyping={typingUsers?.length > 0}
-      />
-    </div>
+    </ErrorBoundary>
   );
 };
 
