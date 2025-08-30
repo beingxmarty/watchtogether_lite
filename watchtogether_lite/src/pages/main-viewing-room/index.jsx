@@ -400,6 +400,42 @@ const MainViewingRoom = () => {
     return () => clearInterval(interval);
   }, [isPlaying, currentTime, duration]);
 
+  // Presence heartbeat to keep users connected
+  useEffect(() => {
+    if (!presenceChannel || !user) return;
+    const heartbeat = setInterval(() => {
+      presenceChannel.track({
+        user_id: user?.id,
+        display_name: currentUser?.name,
+        last_seen: new Date()?.toISOString(),
+        isTyping: false
+      });
+    }, 15000); // every 15 seconds
+    return () => clearInterval(heartbeat);
+  }, [presenceChannel, user, currentUser?.name]);
+
+  // Reconnect logic: re-track and re-request sync on tab focus
+  useEffect(() => {
+    const onFocus = () => {
+      if (presenceChannel && user) {
+        presenceChannel.track({
+          user_id: user?.id,
+          display_name: currentUser?.name,
+          last_seen: new Date()?.toISOString(),
+          isTyping: false
+        });
+      }
+      // Request sync from other users
+      videoSyncChannel?.send?.({
+        type: 'broadcast',
+        event: 'video-action',
+        payload: { type: 'request-sync' }
+      });
+    };
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, [presenceChannel, videoSyncChannel, user, currentUser?.name]);
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header with user info */}
